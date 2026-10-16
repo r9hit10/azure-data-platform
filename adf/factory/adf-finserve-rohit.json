@@ -1,0 +1,15 @@
+{
+	"name": "adf-finserve-rohit",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "00a6749a-01d2-4226-8014-4189fc89f106",
+		"tenantId": "d4a2a233-ae0e-4904-8a47-3038dff27206"
+	}
+}

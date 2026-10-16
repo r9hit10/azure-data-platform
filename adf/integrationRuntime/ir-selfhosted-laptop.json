@@ -1,0 +1,6 @@
+{
+	"name": "ir-selfhosted-laptop",
+	"properties": {
+		"type": "SelfHosted"
+	}
+}
