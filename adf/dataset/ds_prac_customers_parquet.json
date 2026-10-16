@@ -1,0 +1,24 @@
+{
+	"name": "ds_prac_customers_parquet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_prac_adls",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "Practice"
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "customers.parquet",
+				"folderPath": "bronze",
+				"fileSystem": "practice"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	}
+}
