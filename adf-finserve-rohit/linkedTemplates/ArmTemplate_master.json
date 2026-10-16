@@ -47,6 +47,14 @@
 			"type": "string",
 			"defaultValue": "https://dummyjson.com/"
 		},
+		"ls_prac_azuresql_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "sql-finserve-rohit.database.windows.net"
+		},
+		"ls_prac_azuresql_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "sqldb-finserve-rohit"
+		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -94,6 +102,12 @@
 					},
 					"ls_rest_dummyjson_properties_typeProperties_url": {
 						"value": "[parameters('ls_rest_dummyjson_properties_typeProperties_url')]"
+					},
+					"ls_prac_azuresql_properties_typeProperties_server": {
+						"value": "[parameters('ls_prac_azuresql_properties_typeProperties_server')]"
+					},
+					"ls_prac_azuresql_properties_typeProperties_database": {
+						"value": "[parameters('ls_prac_azuresql_properties_typeProperties_database')]"
 					},
 					"ls_onprem_sqlserver_properties_typeProperties_server": {
 						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_server')]"

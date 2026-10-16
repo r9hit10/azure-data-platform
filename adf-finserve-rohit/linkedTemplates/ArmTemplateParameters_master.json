@@ -35,6 +35,12 @@
 		"ls_rest_dummyjson_properties_typeProperties_url": {
 			"value": "https://dummyjson.com/"
 		},
+		"ls_prac_azuresql_properties_typeProperties_server": {
+			"value": "sql-finserve-rohit.database.windows.net"
+		},
+		"ls_prac_azuresql_properties_typeProperties_database": {
+			"value": "sqldb-finserve-rohit"
+		},
 		"containerUri": {
 			"value": ""
 		},
