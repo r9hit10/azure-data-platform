@@ -32,6 +32,21 @@
 						"sqlWriterUseTableLock": false
 					},
 					"enableStaging": false,
+					"enableSkipIncompatibleRow": true,
+					"logSettings": {
+						"enableCopyActivityLog": true,
+						"copyActivityLogSettings": {
+							"logLevel": "Warning",
+							"enableReliableLogging": true
+						},
+						"logLocationSettings": {
+							"linkedServiceName": {
+								"referenceName": "ls_prac_adls",
+								"type": "LinkedServiceReference"
+							},
+							"path": "practice/logs"
+						}
+					},
 					"translator": {
 						"type": "TabularTranslator",
 						"mappings": [
