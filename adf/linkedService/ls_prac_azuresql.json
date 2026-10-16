@@ -1,0 +1,14 @@
+{
+	"name": "ls_prac_azuresql",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"server": "sql-finserve-rohit.database.windows.net",
+			"database": "sqldb-finserve-rohit",
+			"encrypt": "mandatory",
+			"trustServerCertificate": false,
+			"authenticationType": "SystemAssignedManagedIdentity"
+		}
+	}
+}
