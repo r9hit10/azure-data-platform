@@ -1,0 +1,290 @@
+{
+    "name": "pl_ecom_orchestrator",
+    "properties": {
+        "description": "E-COMMERCE end-to-end: API + SQL CDC -> Bronze -> Silver (generic notebook per entity) -> Gold SCD1/SCD2 dims + facts.",
+        "activities": [
+            {
+                "name": "validate_config_file",
+                "type": "Validation",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_adls_json",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "container": "opsfinserve",
+                            "folder_path": "config",
+                            "file_name": "ecom_tables.json"
+                        }
+                    },
+                    "timeout": "0.00:05:00",
+                    "sleep": 30
+                }
+            },
+            {
+                "name": "exec_products_api",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "validate_config_file",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_ecom_ingest_products_api",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {}
+                }
+            },
+            {
+                "name": "exec_ingest_cdc",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "validate_config_file",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_ecom_ingest_master",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "backdate": {
+                            "value": "@pipeline().parameters.backdate",
+                            "type": "Expression"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "foreach_silver_entity",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "exec_products_api",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    },
+                    {
+                        "activity": "exec_ingest_cdc",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@pipeline().parameters.silver_entities",
+                        "type": "Expression"
+                    },
+                    "isSequential": true,
+                    "activities": [
+                        {
+                            "name": "nb_silver_entity",
+                            "type": "DatabricksNotebook",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "notebookPath": "/Shared/dataplatform/ecom/nb_silver_ecom",
+                                "baseParameters": {
+                                    "p_run_id": {
+                                        "value": "@pipeline().RunId",
+                                        "type": "Expression"
+                                    },
+                                    "p_load_date": {
+                                        "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                                        "type": "Expression"
+                                    },
+                                    "p_entity": {
+                                        "value": "@item()",
+                                        "type": "Expression"
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_databricks",
+                                "type": "LinkedServiceReference"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "nb_gold_dimensions",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "foreach_silver_entity",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/dataplatform/ecom/nb_gold_dimensions",
+                    "baseParameters": {
+                        "p_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "p_load_date": {
+                            "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "nb_gold_facts",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "nb_gold_dimensions",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/dataplatform/ecom/nb_gold_facts",
+                    "baseParameters": {
+                        "p_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "p_load_date": {
+                            "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "exec_send_alert",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "nb_gold_facts",
+                        "dependencyConditions": [
+                            "Failed",
+                            "Skipped"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_send_alert",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "logic_app_url": {
+                            "value": "@pipeline().parameters.logic_app_url",
+                            "type": "Expression"
+                        },
+                        "failed_pipeline": {
+                            "value": "@pipeline().Pipeline",
+                            "type": "Expression"
+                        },
+                        "failed_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "message": "E-commerce pipeline failed."
+                    }
+                }
+            },
+            {
+                "name": "fail_pipeline",
+                "type": "Fail",
+                "dependsOn": [
+                    {
+                        "activity": "exec_send_alert",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "message": "E-commerce pipeline failed - alert sent",
+                    "errorCode": "500"
+                }
+            }
+        ],
+        "parameters": {
+            "backdate": {
+                "type": "string",
+                "defaultValue": ""
+            },
+            "logic_app_url": {
+                "type": "string",
+                "defaultValue": ""
+            },
+            "silver_entities": {
+                "type": "array",
+                "defaultValue": [
+                    "products",
+                    "customers",
+                    "orders",
+                    "order_items",
+                    "payments",
+                    "inventory",
+                    "returns"
+                ]
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "ecom"
+        }
+    }
+}

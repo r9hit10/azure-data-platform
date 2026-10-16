@@ -1,0 +1,153 @@
+{
+    "name": "pl_seed_source_tables",
+    "properties": {
+        "description": "ONE-TIME: loads raw CSVs from landingfinserve/<project>/ into Azure SQL source tables.",
+        "activities": [
+            {
+                "name": "lkp_seed_files",
+                "type": "Lookup",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": {
+                            "value": "@concat('SELECT * FROM ctl.seed_config WHERE project = ''', pipeline().parameters.project, '''')",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "ds_sql_generic",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "schema_name": "ctl",
+                            "table_name": "ingestion_config"
+                        }
+                    },
+                    "firstRowOnly": false
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                }
+            },
+            {
+                "name": "foreach_seed_file",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "lkp_seed_files",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('lkp_seed_files').output.value",
+                        "type": "Expression"
+                    },
+                    "isSequential": false,
+                    "activities": [
+                        {
+                            "name": "copy_csv_to_sql",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSReadSettings",
+                                        "recursive": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    }
+                                },
+                                "sink": {
+                                    "type": "AzureSqlSink",
+                                    "writeBehavior": "insert",
+                                    "sqlWriterUseTableLock": true,
+                                    "writeBatchSize": 50000,
+                                    "preCopyScript": {
+                                        "value": "@{concat('TRUNCATE TABLE ', item().target_schema, '.', item().target_table)}",
+                                        "type": "Expression"
+                                    },
+                                    "disableMetricsCollection": false
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_adls_csv",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": "landingfinserve",
+                                        "folder_path": {
+                                            "value": "@item().landing_folder",
+                                            "type": "Expression"
+                                        },
+                                        "file_name": {
+                                            "value": "@item().file_name",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_sql_generic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "schema_name": {
+                                            "value": "@item().target_schema",
+                                            "type": "Expression"
+                                        },
+                                        "table_name": {
+                                            "value": "@item().target_table",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "batchCount": 3
+                }
+            }
+        ],
+        "parameters": {
+            "project": {
+                "type": "string",
+                "defaultValue": "bank"
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "00_framework"
+        }
+    }
+}

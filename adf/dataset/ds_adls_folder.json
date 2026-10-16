@@ -1,0 +1,35 @@
+{
+    "name": "ds_adls_folder",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_adls",
+            "type": "LinkedServiceReference"
+        },
+        "folder": {
+            "name": "generic"
+        },
+        "parameters": {
+            "container": {
+                "type": "string"
+            },
+            "folder_path": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "Binary",
+        "typeProperties": {
+            "location": {
+                "type": "AzureBlobFSLocation",
+                "folderPath": {
+                    "value": "@dataset().folder_path",
+                    "type": "Expression"
+                },
+                "fileSystem": {
+                    "value": "@dataset().container",
+                    "type": "Expression"
+                }
+            }
+        }
+    }
+}

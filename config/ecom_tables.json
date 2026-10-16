@@ -1,0 +1,8 @@
+[
+  {"table_name": "customers",   "watermark_column": "updated_at", "primary_key": "customer_id"},
+  {"table_name": "orders",      "watermark_column": "updated_at", "primary_key": "order_id"},
+  {"table_name": "order_items", "watermark_column": "updated_at", "primary_key": "order_item_id"},
+  {"table_name": "payments",    "watermark_column": "updated_at", "primary_key": "payment_id"},
+  {"table_name": "inventory",   "watermark_column": "updated_at", "primary_key": "warehouse_id,product_id"},
+  {"table_name": "returns",     "watermark_column": "updated_at", "primary_key": "return_id"}
+]

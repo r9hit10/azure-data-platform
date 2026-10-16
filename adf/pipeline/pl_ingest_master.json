@@ -1,0 +1,290 @@
+{
+    "name": "pl_ingest_master",
+    "properties": {
+        "description": "METADATA-DRIVEN MASTER: reads ctl.ingestion_config and routes every table to the right child pipeline (Azure SQL / on-prem SQL via SHIR / REST API).",
+        "activities": [
+            {
+                "name": "lkp_active_tables",
+                "type": "Lookup",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderStoredProcedureName": "[ctl].[usp_get_active_tables]",
+                        "storedProcedureParameters": {
+                            "project": {
+                                "type": "String",
+                                "value": {
+                                    "value": "@pipeline().parameters.project",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "ds_sql_generic",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "schema_name": "ctl",
+                            "table_name": "ingestion_config"
+                        }
+                    },
+                    "firstRowOnly": false
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                }
+            },
+            {
+                "name": "foreach_table",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "lkp_active_tables",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('lkp_active_tables').output.value",
+                        "type": "Expression"
+                    },
+                    "isSequential": false,
+                    "activities": [
+                        {
+                            "name": "switch_source_type",
+                            "type": "Switch",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "on": {
+                                    "value": "@item().source_type",
+                                    "type": "Expression"
+                                },
+                                "cases": [
+                                    {
+                                        "value": "AZURE_SQL",
+                                        "activities": [
+                                            {
+                                                "name": "exec_azuresql_table",
+                                                "type": "ExecutePipeline",
+                                                "dependsOn": [],
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "pipeline": {
+                                                        "referenceName": "pl_ingest_azuresql_table",
+                                                        "type": "PipelineReference"
+                                                    },
+                                                    "waitOnCompletion": true,
+                                                    "parameters": {
+                                                        "config_id": {
+                                                            "value": "@item().config_id",
+                                                            "type": "Expression"
+                                                        },
+                                                        "project": {
+                                                            "value": "@item().project",
+                                                            "type": "Expression"
+                                                        },
+                                                        "source_schema": {
+                                                            "value": "@item().source_schema",
+                                                            "type": "Expression"
+                                                        },
+                                                        "source_table": {
+                                                            "value": "@item().source_table",
+                                                            "type": "Expression"
+                                                        },
+                                                        "load_type": {
+                                                            "value": "@item().load_type",
+                                                            "type": "Expression"
+                                                        },
+                                                        "watermark_column": {
+                                                            "value": "@item().watermark_column",
+                                                            "type": "Expression"
+                                                        },
+                                                        "last_watermark": {
+                                                            "value": "@item().last_watermark",
+                                                            "type": "Expression"
+                                                        },
+                                                        "target_container": {
+                                                            "value": "@item().target_container",
+                                                            "type": "Expression"
+                                                        },
+                                                        "target_folder": {
+                                                            "value": "@item().target_folder",
+                                                            "type": "Expression"
+                                                        },
+                                                        "parent_run_id": {
+                                                            "value": "@pipeline().RunId",
+                                                            "type": "Expression"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "value": "ONPREM_SQL",
+                                        "activities": [
+                                            {
+                                                "name": "exec_onprem_table",
+                                                "type": "ExecutePipeline",
+                                                "dependsOn": [],
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "pipeline": {
+                                                        "referenceName": "pl_ingest_onprem_table",
+                                                        "type": "PipelineReference"
+                                                    },
+                                                    "waitOnCompletion": true,
+                                                    "parameters": {
+                                                        "config_id": {
+                                                            "value": "@item().config_id",
+                                                            "type": "Expression"
+                                                        },
+                                                        "project": {
+                                                            "value": "@item().project",
+                                                            "type": "Expression"
+                                                        },
+                                                        "source_schema": {
+                                                            "value": "@item().source_schema",
+                                                            "type": "Expression"
+                                                        },
+                                                        "source_table": {
+                                                            "value": "@item().source_table",
+                                                            "type": "Expression"
+                                                        },
+                                                        "load_type": {
+                                                            "value": "@item().load_type",
+                                                            "type": "Expression"
+                                                        },
+                                                        "watermark_column": {
+                                                            "value": "@item().watermark_column",
+                                                            "type": "Expression"
+                                                        },
+                                                        "last_watermark": {
+                                                            "value": "@item().last_watermark",
+                                                            "type": "Expression"
+                                                        },
+                                                        "target_container": {
+                                                            "value": "@item().target_container",
+                                                            "type": "Expression"
+                                                        },
+                                                        "target_folder": {
+                                                            "value": "@item().target_folder",
+                                                            "type": "Expression"
+                                                        },
+                                                        "parent_run_id": {
+                                                            "value": "@pipeline().RunId",
+                                                            "type": "Expression"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "value": "REST_API",
+                                        "activities": [
+                                            {
+                                                "name": "exec_api_resource",
+                                                "type": "ExecutePipeline",
+                                                "dependsOn": [],
+                                                "userProperties": [],
+                                                "typeProperties": {
+                                                    "pipeline": {
+                                                        "referenceName": "pl_ingest_api_resource",
+                                                        "type": "PipelineReference"
+                                                    },
+                                                    "waitOnCompletion": true,
+                                                    "parameters": {
+                                                        "config_id": {
+                                                            "value": "@item().config_id",
+                                                            "type": "Expression"
+                                                        },
+                                                        "project": {
+                                                            "value": "@item().project",
+                                                            "type": "Expression"
+                                                        },
+                                                        "source_schema": {
+                                                            "value": "@item().source_schema",
+                                                            "type": "Expression"
+                                                        },
+                                                        "source_table": {
+                                                            "value": "@item().source_table",
+                                                            "type": "Expression"
+                                                        },
+                                                        "load_type": {
+                                                            "value": "@item().load_type",
+                                                            "type": "Expression"
+                                                        },
+                                                        "watermark_column": {
+                                                            "value": "@item().watermark_column",
+                                                            "type": "Expression"
+                                                        },
+                                                        "last_watermark": {
+                                                            "value": "@item().last_watermark",
+                                                            "type": "Expression"
+                                                        },
+                                                        "target_container": {
+                                                            "value": "@item().target_container",
+                                                            "type": "Expression"
+                                                        },
+                                                        "target_folder": {
+                                                            "value": "@item().target_folder",
+                                                            "type": "Expression"
+                                                        },
+                                                        "parent_run_id": {
+                                                            "value": "@pipeline().RunId",
+                                                            "type": "Expression"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ],
+                                "defaultActivities": [
+                                    {
+                                        "name": "fail_unknown_source",
+                                        "type": "Fail",
+                                        "dependsOn": [],
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "message": {
+                                                "value": "@concat('Unknown source_type: ', item().source_type)",
+                                                "type": "Expression"
+                                            },
+                                            "errorCode": "500"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "batchCount": 4
+                }
+            }
+        ],
+        "parameters": {
+            "project": {
+                "type": "string",
+                "defaultValue": "bank"
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "00_framework"
+        }
+    }
+}

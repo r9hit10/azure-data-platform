@@ -1,0 +1,105 @@
+{
+    "name": "pl_ecom_ingest_master",
+    "properties": {
+        "description": "Reads ops/config/ecom_tables.json and ingests every table in parallel. Set backdate='2026-09-01' to reload history.",
+        "activities": [
+            {
+                "name": "lkp_table_config",
+                "type": "Lookup",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "JsonSource",
+                        "storeSettings": {
+                            "type": "AzureBlobFSReadSettings",
+                            "recursive": false,
+                            "enablePartitionDiscovery": false
+                        },
+                        "formatSettings": {
+                            "type": "JsonReadSettings"
+                        }
+                    },
+                    "dataset": {
+                        "referenceName": "ds_adls_json",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "container": "opsfinserve",
+                            "folder_path": "config",
+                            "file_name": "ecom_tables.json"
+                        }
+                    },
+                    "firstRowOnly": false
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                }
+            },
+            {
+                "name": "foreach_table",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "lkp_table_config",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('lkp_table_config').output.value",
+                        "type": "Expression"
+                    },
+                    "isSequential": false,
+                    "activities": [
+                        {
+                            "name": "exec_table_cdc",
+                            "type": "ExecutePipeline",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "pipeline": {
+                                    "referenceName": "pl_ecom_ingest_table_cdc",
+                                    "type": "PipelineReference"
+                                },
+                                "waitOnCompletion": true,
+                                "parameters": {
+                                    "table_name": {
+                                        "value": "@item().table_name",
+                                        "type": "Expression"
+                                    },
+                                    "watermark_column": {
+                                        "value": "@item().watermark_column",
+                                        "type": "Expression"
+                                    },
+                                    "backdate": {
+                                        "value": "@pipeline().parameters.backdate",
+                                        "type": "Expression"
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    "batchCount": 4
+                }
+            }
+        ],
+        "parameters": {
+            "backdate": {
+                "type": "string",
+                "defaultValue": ""
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "ecom"
+        }
+    }
+}

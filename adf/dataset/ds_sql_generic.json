@@ -1,0 +1,33 @@
+{
+    "name": "ds_sql_generic",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_azuresql",
+            "type": "LinkedServiceReference"
+        },
+        "folder": {
+            "name": "generic"
+        },
+        "parameters": {
+            "schema_name": {
+                "type": "string"
+            },
+            "table_name": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "AzureSqlTable",
+        "schema": [],
+        "typeProperties": {
+            "schema": {
+                "value": "@dataset().schema_name",
+                "type": "Expression"
+            },
+            "table": {
+                "value": "@dataset().table_name",
+                "type": "Expression"
+            }
+        }
+    }
+}

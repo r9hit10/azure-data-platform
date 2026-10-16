@@ -1,0 +1,401 @@
+{
+    "name": "pl_ecom_ingest_table_cdc",
+    "properties": {
+        "description": "CDC ingestion for one table; watermark stored in ops/cdc/ecom/<table>.json; supports back-dated refresh.",
+        "activities": [
+            {
+                "name": "gm_cdc_file",
+                "type": "GetMetadata",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "dataset": {
+                        "referenceName": "ds_adls_json",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "container": "opsfinserve",
+                            "folder_path": "cdc/ecom",
+                            "file_name": {
+                                "value": "@concat(pipeline().parameters.table_name, '.json')",
+                                "type": "Expression"
+                            }
+                        }
+                    },
+                    "fieldList": [
+                        "exists"
+                    ],
+                    "storeSettings": {
+                        "type": "AzureBlobFSReadSettings",
+                        "recursive": false,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "JsonReadSettings"
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                }
+            },
+            {
+                "name": "if_cdc_file_exists",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "gm_cdc_file",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@activity('gm_cdc_file').output.exists",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "lkp_cdc_file",
+                            "type": "Lookup",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "JsonSource",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSReadSettings",
+                                        "recursive": false,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "JsonReadSettings"
+                                    }
+                                },
+                                "dataset": {
+                                    "referenceName": "ds_adls_json",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": "opsfinserve",
+                                        "folder_path": "cdc/ecom",
+                                        "file_name": {
+                                            "value": "@concat(pipeline().parameters.table_name, '.json')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                },
+                                "firstRowOnly": true
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            }
+                        },
+                        {
+                            "name": "set_from_cdc_file",
+                            "type": "SetVariable",
+                            "dependsOn": [
+                                {
+                                    "activity": "lkp_cdc_file",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "variableName": "v_from",
+                                "value": {
+                                    "value": "@activity('lkp_cdc_file').output.firstRow.cdc_ts",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    ],
+                    "ifFalseActivities": [
+                        {
+                            "name": "set_from_default",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "variableName": "v_from",
+                                "value": "1900-01-01 00:00:00.000"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "set_effective_from",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "if_cdc_file_exists",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "variableName": "v_effective_from",
+                    "value": {
+                        "value": "@if(empty(pipeline().parameters.backdate), variables('v_from'), pipeline().parameters.backdate)",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "lkp_max_cdc",
+                "type": "Lookup",
+                "dependsOn": [
+                    {
+                        "activity": "set_effective_from",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": {
+                            "value": "@concat('SELECT CONVERT(VARCHAR(23), MAX(', pipeline().parameters.watermark_column, '), 121) AS max_ts, COUNT_BIG(1) AS delta_rows FROM ecom.', pipeline().parameters.table_name, ' WHERE ', pipeline().parameters.watermark_column, ' > ''', variables('v_effective_from'), '''')",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "ds_sql_generic",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "schema_name": "ctl",
+                            "table_name": "ingestion_config"
+                        }
+                    },
+                    "firstRowOnly": true
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                }
+            },
+            {
+                "name": "if_new_data",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "lkp_max_cdc",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@greater(activity('lkp_max_cdc').output.firstRow.delta_rows, 0)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "copy_to_bronze",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "sqlReaderQuery": {
+                                        "value": "@concat('SELECT * FROM ecom.', pipeline().parameters.table_name, ' WHERE ', pipeline().parameters.watermark_column, ' > ''', variables('v_effective_from'), ''' AND ', pipeline().parameters.watermark_column, ' <= ''', activity('lkp_max_cdc').output.firstRow.max_ts, '''')",
+                                        "type": "Expression"
+                                    },
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None",
+                                    "additionalColumns": [
+                                        {
+                                            "name": "_adf_run_id",
+                                            "value": {
+                                                "value": "@pipeline().RunId",
+                                                "type": "Expression"
+                                            }
+                                        },
+                                        {
+                                            "name": "_ingest_ts",
+                                            "value": {
+                                                "value": "@utcNow()",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "sink": {
+                                    "type": "ParquetSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings"
+                                    },
+                                    "formatSettings": {
+                                        "type": "ParquetWriteSettings"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_sql_generic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "schema_name": "ecom",
+                                        "table_name": {
+                                            "value": "@pipeline().parameters.table_name",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_adls_parquet",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": "bronzefinserve",
+                                        "folder_path": {
+                                            "value": "@concat('ecom/', pipeline().parameters.table_name, '/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd'))",
+                                            "type": "Expression"
+                                        },
+                                        "file_name": {
+                                            "value": "@concat(pipeline().parameters.table_name, '_', formatDateTime(utcNow(),'yyyyMMddHHmmss'), '.parquet')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "copy_update_cdc_file",
+                            "type": "Copy",
+                            "dependsOn": [
+                                {
+                                    "activity": "copy_to_bronze",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "sqlReaderQuery": {
+                                        "value": "@concat('SELECT ''', activity('lkp_max_cdc').output.firstRow.max_ts, ''' AS cdc_ts, ''', pipeline().RunId, ''' AS updated_by_run')",
+                                        "type": "Expression"
+                                    },
+                                    "queryTimeout": "00:10:00",
+                                    "partitionOption": "None"
+                                },
+                                "sink": {
+                                    "type": "JsonSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings"
+                                    },
+                                    "formatSettings": {
+                                        "type": "JsonWriteSettings",
+                                        "filePattern": "setOfObjects"
+                                    }
+                                },
+                                "enableStaging": false
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_sql_generic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "schema_name": "ecom",
+                                        "table_name": {
+                                            "value": "@pipeline().parameters.table_name",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_adls_json",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": "opsfinserve",
+                                        "folder_path": "cdc/ecom",
+                                        "file_name": {
+                                            "value": "@concat(pipeline().parameters.table_name, '.json')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ],
+        "parameters": {
+            "table_name": {
+                "type": "string"
+            },
+            "watermark_column": {
+                "type": "string",
+                "defaultValue": "updated_at"
+            },
+            "backdate": {
+                "type": "string",
+                "defaultValue": ""
+            }
+        },
+        "variables": {
+            "v_from": {
+                "type": "String"
+            },
+            "v_effective_from": {
+                "type": "String"
+            }
+        },
+        "annotations": [],
+        "folder": {
+            "name": "ecom"
+        }
+    }
+}

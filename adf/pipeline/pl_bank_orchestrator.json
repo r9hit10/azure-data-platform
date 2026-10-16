@@ -1,0 +1,236 @@
+{
+    "name": "pl_bank_orchestrator",
+    "properties": {
+        "description": "BANK end-to-end: API + Azure SQL + on-prem SQL -> Bronze (ADF) -> Silver (Databricks MERGE) -> Gold, with failure alert.",
+        "activities": [
+            {
+                "name": "exec_ingest_bank",
+                "type": "ExecutePipeline",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_ingest_master",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "project": "bank"
+                    }
+                }
+            },
+            {
+                "name": "nb_silver_customers",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "exec_ingest_bank",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/dataplatform/bank/nb_silver_customers",
+                    "baseParameters": {
+                        "p_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "p_load_date": {
+                            "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "nb_silver_accounts",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "nb_silver_customers",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/dataplatform/bank/nb_silver_accounts",
+                    "baseParameters": {
+                        "p_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "p_load_date": {
+                            "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "nb_silver_transactions",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "nb_silver_accounts",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/dataplatform/bank/nb_silver_transactions",
+                    "baseParameters": {
+                        "p_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "p_load_date": {
+                            "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "nb_gold_bank",
+                "type": "DatabricksNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "nb_silver_transactions",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "notebookPath": "/Shared/dataplatform/bank/nb_gold_bank",
+                    "baseParameters": {
+                        "p_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "p_load_date": {
+                            "value": "@formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')",
+                            "type": "Expression"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_databricks",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "exec_send_alert",
+                "type": "ExecutePipeline",
+                "dependsOn": [
+                    {
+                        "activity": "nb_gold_bank",
+                        "dependencyConditions": [
+                            "Failed",
+                            "Skipped"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "pipeline": {
+                        "referenceName": "pl_send_alert",
+                        "type": "PipelineReference"
+                    },
+                    "waitOnCompletion": true,
+                    "parameters": {
+                        "logic_app_url": {
+                            "value": "@pipeline().parameters.logic_app_url",
+                            "type": "Expression"
+                        },
+                        "failed_pipeline": {
+                            "value": "@pipeline().Pipeline",
+                            "type": "Expression"
+                        },
+                        "failed_run_id": {
+                            "value": "@pipeline().RunId",
+                            "type": "Expression"
+                        },
+                        "message": "Banking pipeline failed. Check ADF Monitor and ctl.vw_latest_runs / ops.recon_log."
+                    }
+                }
+            },
+            {
+                "name": "fail_pipeline",
+                "type": "Fail",
+                "dependsOn": [
+                    {
+                        "activity": "exec_send_alert",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "message": "Banking pipeline failed - alert sent",
+                    "errorCode": "500"
+                }
+            }
+        ],
+        "parameters": {
+            "logic_app_url": {
+                "type": "string",
+                "defaultValue": ""
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "bank"
+        }
+    }
+}

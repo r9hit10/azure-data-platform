@@ -1,0 +1,592 @@
+{
+    "name": "pl_ingest_azuresql_table",
+    "properties": {
+        "description": "CHILD: watermark-incremental (or full) copy of one Azure SQL table to Bronze parquet, with audit log + failure handling.",
+        "activities": [
+            {
+                "name": "sp_log_start",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "storedProcedureName": "[ctl].[usp_log_run_start]",
+                    "storedProcedureParameters": {
+                        "pipeline_run_id": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "parent_run_id": {
+                            "value": {
+                                "value": "@pipeline().parameters.parent_run_id",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "pipeline_name": {
+                            "value": {
+                                "value": "@pipeline().Pipeline",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "project": {
+                            "value": {
+                                "value": "@pipeline().parameters.project",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "source_table": {
+                            "value": {
+                                "value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "old_watermark": {
+                            "value": {
+                                "value": "@pipeline().parameters.last_watermark",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_azuresql",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "lkp_new_watermark",
+                "type": "Lookup",
+                "dependsOn": [
+                    {
+                        "activity": "sp_log_start",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "sqlReaderQuery": {
+                            "value": "@if(equals(pipeline().parameters.load_type, 'FULL'), concat('SELECT CONVERT(VARCHAR(23), SYSUTCDATETIME(), 121) AS new_watermark, COUNT_BIG(1) AS delta_rows FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)), concat('SELECT CONVERT(VARCHAR(23), MAX(', pipeline().parameters.watermark_column, '), 121) AS new_watermark, COUNT_BIG(1) AS delta_rows FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table), ' WHERE ', pipeline().parameters.watermark_column, ' > ''', pipeline().parameters.last_watermark, ''''))",
+                            "type": "Expression"
+                        },
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "ds_sql_generic",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "schema_name": "ctl",
+                            "table_name": "ingestion_config"
+                        }
+                    },
+                    "firstRowOnly": true
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 1,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                }
+            },
+            {
+                "name": "if_has_new_data",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "lkp_new_watermark",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@greater(activity('lkp_new_watermark').output.firstRow.delta_rows, 0)",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "copy_to_bronze",
+                            "type": "Copy",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "sqlReaderQuery": {
+                                        "value": "@if(equals(pipeline().parameters.load_type, 'FULL'), concat('SELECT * FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)), concat('SELECT * FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table), ' WHERE ', pipeline().parameters.watermark_column, ' > ''', pipeline().parameters.last_watermark, ''' AND ', pipeline().parameters.watermark_column, ' <= ''', activity('lkp_new_watermark').output.firstRow.new_watermark, ''''))",
+                                        "type": "Expression"
+                                    },
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None",
+                                    "additionalColumns": [
+                                        {
+                                            "name": "_adf_run_id",
+                                            "value": {
+                                                "value": "@pipeline().RunId",
+                                                "type": "Expression"
+                                            }
+                                        },
+                                        {
+                                            "name": "_ingest_ts",
+                                            "value": {
+                                                "value": "@utcNow()",
+                                                "type": "Expression"
+                                            }
+                                        }
+                                    ]
+                                },
+                                "sink": {
+                                    "type": "ParquetSink",
+                                    "storeSettings": {
+                                        "type": "AzureBlobFSWriteSettings"
+                                    },
+                                    "formatSettings": {
+                                        "type": "ParquetWriteSettings"
+                                    }
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 1,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "inputs": [
+                                {
+                                    "referenceName": "ds_sql_generic",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "schema_name": {
+                                            "value": "@pipeline().parameters.source_schema",
+                                            "type": "Expression"
+                                        },
+                                        "table_name": {
+                                            "value": "@pipeline().parameters.source_table",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "referenceName": "ds_adls_parquet",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "container": {
+                                            "value": "@pipeline().parameters.target_container",
+                                            "type": "Expression"
+                                        },
+                                        "folder_path": {
+                                            "value": "@concat(pipeline().parameters.target_folder, '/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd'))",
+                                            "type": "Expression"
+                                        },
+                                        "file_name": {
+                                            "value": "@concat(pipeline().parameters.source_table, '_', pipeline().RunId, '.parquet')",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "name": "sp_update_watermark",
+                            "type": "SqlServerStoredProcedure",
+                            "dependsOn": [
+                                {
+                                    "activity": "copy_to_bronze",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "storedProcedureName": "[ctl].[usp_update_watermark]",
+                                "storedProcedureParameters": {
+                                    "config_id": {
+                                        "value": {
+                                            "value": "@pipeline().parameters.config_id",
+                                            "type": "Expression"
+                                        },
+                                        "type": "Int32"
+                                    },
+                                    "new_watermark": {
+                                        "value": {
+                                            "value": "@activity('lkp_new_watermark').output.firstRow.new_watermark",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_azuresql",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "name": "sp_log_success",
+                            "type": "SqlServerStoredProcedure",
+                            "dependsOn": [
+                                {
+                                    "activity": "sp_update_watermark",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "storedProcedureName": "[ctl].[usp_log_run_end]",
+                                "storedProcedureParameters": {
+                                    "pipeline_run_id": {
+                                        "value": {
+                                            "value": "@pipeline().RunId",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "source_table": {
+                                        "value": {
+                                            "value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "status": {
+                                        "value": "SUCCEEDED",
+                                        "type": "String"
+                                    },
+                                    "rows_read": {
+                                        "value": {
+                                            "value": "@activity('copy_to_bronze').output.rowsRead",
+                                            "type": "Expression"
+                                        },
+                                        "type": "Int64"
+                                    },
+                                    "rows_copied": {
+                                        "value": {
+                                            "value": "@activity('copy_to_bronze').output.rowsCopied",
+                                            "type": "Expression"
+                                        },
+                                        "type": "Int64"
+                                    },
+                                    "new_watermark": {
+                                        "value": {
+                                            "value": "@activity('lkp_new_watermark').output.firstRow.new_watermark",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "file_path": {
+                                        "value": {
+                                            "value": "@concat(pipeline().parameters.target_container, '/', concat(pipeline().parameters.target_folder, '/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')), '/', concat(pipeline().parameters.source_table, '_', pipeline().RunId, '.parquet'))",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_azuresql",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "name": "sp_log_copy_failure",
+                            "type": "SqlServerStoredProcedure",
+                            "dependsOn": [
+                                {
+                                    "activity": "copy_to_bronze",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "storedProcedureName": "[ctl].[usp_log_run_end]",
+                                "storedProcedureParameters": {
+                                    "pipeline_run_id": {
+                                        "value": {
+                                            "value": "@pipeline().RunId",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "source_table": {
+                                        "value": {
+                                            "value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "status": {
+                                        "value": "FAILED",
+                                        "type": "String"
+                                    },
+                                    "error_message": {
+                                        "value": {
+                                            "value": "@activity('copy_to_bronze').error.message",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_azuresql",
+                                "type": "LinkedServiceReference"
+                            }
+                        },
+                        {
+                            "name": "fail_copy",
+                            "type": "Fail",
+                            "dependsOn": [
+                                {
+                                    "activity": "sp_log_copy_failure",
+                                    "dependencyConditions": [
+                                        "Completed"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat('Copy failed for ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table), ': ', activity('copy_to_bronze').error.message)",
+                                    "type": "Expression"
+                                },
+                                "errorCode": "500"
+                            }
+                        }
+                    ],
+                    "ifFalseActivities": [
+                        {
+                            "name": "sp_log_no_new_data",
+                            "type": "SqlServerStoredProcedure",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "storedProcedureName": "[ctl].[usp_log_run_end]",
+                                "storedProcedureParameters": {
+                                    "pipeline_run_id": {
+                                        "value": {
+                                            "value": "@pipeline().RunId",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "source_table": {
+                                        "value": {
+                                            "value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    },
+                                    "status": {
+                                        "value": "NO_NEW_DATA",
+                                        "type": "String"
+                                    },
+                                    "rows_read": {
+                                        "value": 0,
+                                        "type": "Int64"
+                                    },
+                                    "rows_copied": {
+                                        "value": 0,
+                                        "type": "Int64"
+                                    },
+                                    "new_watermark": {
+                                        "value": {
+                                            "value": "@pipeline().parameters.last_watermark",
+                                            "type": "Expression"
+                                        },
+                                        "type": "String"
+                                    }
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "linkedServiceName": {
+                                "referenceName": "ls_azuresql",
+                                "type": "LinkedServiceReference"
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "sp_log_lkp_new_watermark_failure",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "lkp_new_watermark",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "storedProcedureName": "[ctl].[usp_log_run_end]",
+                    "storedProcedureParameters": {
+                        "pipeline_run_id": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "source_table": {
+                            "value": {
+                                "value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "status": {
+                            "value": "FAILED",
+                            "type": "String"
+                        },
+                        "error_message": {
+                            "value": {
+                                "value": "@activity('lkp_new_watermark').error.message",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "policy": {
+                    "timeout": "0.02:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "linkedServiceName": {
+                    "referenceName": "ls_azuresql",
+                    "type": "LinkedServiceReference"
+                }
+            },
+            {
+                "name": "fail_lkp_new_watermark",
+                "type": "Fail",
+                "dependsOn": [
+                    {
+                        "activity": "sp_log_lkp_new_watermark_failure",
+                        "dependencyConditions": [
+                            "Completed"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "message": {
+                        "value": "@concat('lkp_new_watermark failed for ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table))",
+                        "type": "Expression"
+                    },
+                    "errorCode": "500"
+                }
+            }
+        ],
+        "parameters": {
+            "config_id": {
+                "type": "int"
+            },
+            "project": {
+                "type": "string"
+            },
+            "source_schema": {
+                "type": "string"
+            },
+            "source_table": {
+                "type": "string"
+            },
+            "load_type": {
+                "type": "string",
+                "defaultValue": "INCREMENTAL"
+            },
+            "watermark_column": {
+                "type": "string",
+                "defaultValue": ""
+            },
+            "last_watermark": {
+                "type": "string",
+                "defaultValue": "1900-01-01 00:00:00.000"
+            },
+            "target_container": {
+                "type": "string",
+                "defaultValue": "bronzefinserve"
+            },
+            "target_folder": {
+                "type": "string"
+            },
+            "parent_run_id": {
+                "type": "string",
+                "defaultValue": ""
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "00_framework"
+        }
+    }
+}

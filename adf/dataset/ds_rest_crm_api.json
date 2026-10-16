@@ -1,0 +1,26 @@
+{
+    "name": "ds_rest_crm_api",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_rest_crm_api",
+            "type": "LinkedServiceReference"
+        },
+        "folder": {
+            "name": "generic"
+        },
+        "parameters": {
+            "relative_url": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "RestResource",
+        "typeProperties": {
+            "relativeUrl": {
+                "value": "@dataset().relative_url",
+                "type": "Expression"
+            }
+        },
+        "schema": []
+    }
+}

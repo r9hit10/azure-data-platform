@@ -1,0 +1,70 @@
+{
+    "name": "pl_send_alert",
+    "properties": {
+        "description": "Posts a failure payload to a Logic App HTTP trigger, which emails you.",
+        "activities": [
+            {
+                "name": "if_alert_url_set",
+                "type": "IfCondition",
+                "dependsOn": [],
+                "userProperties": [],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@not(empty(pipeline().parameters.logic_app_url))",
+                        "type": "Expression"
+                    },
+                    "ifTrueActivities": [
+                        {
+                            "name": "web_call_logic_app",
+                            "type": "WebActivity",
+                            "dependsOn": [],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "method": "POST",
+                                "url": {
+                                    "value": "@pipeline().parameters.logic_app_url",
+                                    "type": "Expression"
+                                },
+                                "headers": {
+                                    "Content-Type": "application/json"
+                                },
+                                "body": {
+                                    "value": "@json(concat('{\"pipeline\":\"', pipeline().parameters.failed_pipeline, '\",\"run_id\":\"', pipeline().parameters.failed_run_id, '\",\"factory\":\"', pipeline().DataFactory, '\",\"message\":\"', replace(pipeline().parameters.message, '\"', ''''), '\"}'))",
+                                    "type": "Expression"
+                                }
+                            },
+                            "policy": {
+                                "timeout": "0.02:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "parameters": {
+            "logic_app_url": {
+                "type": "string",
+                "defaultValue": ""
+            },
+            "failed_pipeline": {
+                "type": "string"
+            },
+            "failed_run_id": {
+                "type": "string"
+            },
+            "message": {
+                "type": "string",
+                "defaultValue": "Pipeline failed"
+            }
+        },
+        "variables": {},
+        "annotations": [],
+        "folder": {
+            "name": "00_framework"
+        }
+    }
+}

@@ -1,0 +1,33 @@
+{
+    "name": "ds_onprem_sql_generic",
+    "properties": {
+        "linkedServiceName": {
+            "referenceName": "ls_onprem_sqlserver",
+            "type": "LinkedServiceReference"
+        },
+        "folder": {
+            "name": "generic"
+        },
+        "parameters": {
+            "schema_name": {
+                "type": "string"
+            },
+            "table_name": {
+                "type": "string"
+            }
+        },
+        "annotations": [],
+        "type": "SqlServerTable",
+        "schema": [],
+        "typeProperties": {
+            "schema": {
+                "value": "@dataset().schema_name",
+                "type": "Expression"
+            },
+            "table": {
+                "value": "@dataset().table_name",
+                "type": "Expression"
+            }
+        }
+    }
+}
