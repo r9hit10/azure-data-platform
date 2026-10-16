@@ -1,0 +1,39 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-finserve-rohit"
+		},
+		"ls_onprem_sqlserver_password": {
+			"value": ""
+		},
+		"ls_adls_properties_typeProperties_url": {
+			"value": "https://stfinservedevrohit.dfs.core.windows.net/"
+		},
+		"ls_azuresql_properties_typeProperties_server": {
+			"value": "sql-finserve-rohit.database.windows.net"
+		},
+		"ls_azuresql_properties_typeProperties_database": {
+			"value": "sqldb-finserve-rohit"
+		},
+		"ls_onprem_sqlserver_properties_typeProperties_server": {
+			"value": "localhost\\SQLEXPRESS"
+		},
+		"ls_onprem_sqlserver_properties_typeProperties_database": {
+			"value": "CoreBankingDB"
+		},
+		"ls_onprem_sqlserver_properties_typeProperties_userName": {
+			"value": "adf_reader"
+		},
+		"ls_prac_adls_properties_typeProperties_url": {
+			"value": "https://stfinservedevrohit.dfs.core.windows.net/"
+		},
+		"ls_rest_crm_api_properties_typeProperties_url": {
+			"value": "https://dummyjson.com/"
+		},
+		"ls_rest_dummyjson_properties_typeProperties_url": {
+			"value": "https://dummyjson.com/"
+		}
+	}
+}
