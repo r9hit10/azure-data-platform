@@ -12,7 +12,15 @@
 					"name": "sourcereporting"
 				}
 			],
-			"sinks": [],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds05_sink_dataflow",
+						"type": "DatasetReference"
+					},
+					"name": "sinktransformedfiles"
+				}
+			],
 			"transformations": [
 				{
 					"name": "selectcols"
@@ -60,7 +68,14 @@
 				"filterRows split(payment=='visa',",
 				"     payment=='americanexpress',",
 				"     disjoint: false) ~> splitpayments@(visa, americanexpress, neitherboth)",
-				"splitpayments@neitherboth derive(payment = coalesce(payment,'N/A')) ~> derivedColumnRemoveNulls"
+				"splitpayments@neitherboth derive(payment = coalesce(payment,'N/A')) ~> derivedColumnRemoveNulls",
+				"splitpayments@visa sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     umask: 0022,",
+				"     preCommands: [],",
+				"     postCommands: [],",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sinktransformedfiles"
 			]
 		}
 	}
