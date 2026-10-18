@@ -29,6 +29,53 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_adls_parquet')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_adls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"container": {
+						"type": "string"
+					},
+					"folder_path": {
+						"type": "string"
+					},
+					"file_name": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "generic"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().file_name",
+							"type": "Expression"
+						},
+						"folderPath": {
+							"value": "@dataset().folder_path",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().container",
+							"type": "Expression"
+						}
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_ansh_sourece_csv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -36,6 +83,9 @@
 				"linkedServiceName": {
 					"referenceName": "ls1_ansh_dl",
 					"type": "LinkedServiceReference"
+				},
+				"folder": {
+					"name": "Datasets Ansh YT"
 				},
 				"annotations": [],
 				"type": "DelimitedText",
@@ -475,6 +525,82 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/parads_04_param_csv')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_prac_adls",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"param_file_name": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": {
+							"value": "@dataset().param_file_name",
+							"type": "Expression"
+						},
+						"folderPath": "csvfiles",
+						"fileSystem": "ansh-adf-sink"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "transaction_id",
+						"type": "String"
+					},
+					{
+						"name": "transactional_date",
+						"type": "String"
+					},
+					{
+						"name": "product_id",
+						"type": "String"
+					},
+					{
+						"name": "customer_id",
+						"type": "String"
+					},
+					{
+						"name": "payment",
+						"type": "String"
+					},
+					{
+						"name": "credit_card",
+						"type": "String"
+					},
+					{
+						"name": "loyalty_card",
+						"type": "String"
+					},
+					{
+						"name": "cost",
+						"type": "String"
+					},
+					{
+						"name": "quantity",
+						"type": "String"
+					},
+					{
+						"name": "price",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ls_onprem_sqlserver')]",
 			"type": "Microsoft.DataFactory/factories/linkedServices",
 			"apiVersion": "2018-06-01",
@@ -708,6 +834,166 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/PL_ansh_04_for_loop_and_If_Condition')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Get Metadata of Sink",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "ds03_ansh_getmetadataofsink",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"exists",
+								"itemName",
+								"itemType",
+								"childItems",
+								"lastModified"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "ForEachCSV",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Get Metadata of Sink",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get Metadata of Sink').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": true,
+							"activities": [
+								{
+									"name": "If File Matches",
+									"type": "IfCondition",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@startswith(item().name,'Fact')",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Copy Data with File name Fact",
+												"type": "Copy",
+												"dependsOn": [],
+												"policy": {
+													"timeout": "0.12:00:00",
+													"retry": 0,
+													"retryIntervalInSeconds": 30,
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"source": {
+														"type": "DelimitedTextSource",
+														"storeSettings": {
+															"type": "AzureBlobFSReadSettings",
+															"recursive": true,
+															"enablePartitionDiscovery": false
+														},
+														"formatSettings": {
+															"type": "DelimitedTextReadSettings"
+														}
+													},
+													"sink": {
+														"type": "DelimitedTextSink",
+														"storeSettings": {
+															"type": "AzureBlobFSWriteSettings"
+														},
+														"formatSettings": {
+															"type": "DelimitedTextWriteSettings",
+															"quoteAllText": true,
+															"fileExtension": ".txt"
+														}
+													},
+													"enableStaging": false,
+													"translator": {
+														"type": "TabularTranslator",
+														"typeConversion": true,
+														"typeConversionSettings": {
+															"allowDataTruncation": true,
+															"treatBooleanAsNumber": false
+														}
+													}
+												},
+												"inputs": [
+													{
+														"referenceName": "parads_04_param_csv",
+														"type": "DatasetReference",
+														"parameters": {
+															"param_file_name": {
+																"value": "@item().name",
+																"type": "Expression"
+															}
+														}
+													}
+												],
+												"outputs": [
+													{
+														"referenceName": "ds_05_reporting_sink",
+														"type": "DatasetReference",
+														"parameters": {
+															"p_file_name": {
+																"value": "@item().name",
+																"type": "Expression"
+															}
+														}
+													}
+												]
+											}
+										]
+									}
+								}
+							]
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Ansh Lamba YT Practice"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/parads_04_param_csv')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_ecom_ingest_products_api')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -909,7 +1195,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_rest_dummyjson')]"
+				"[concat(variables('factoryId'), '/datasets/ds_rest_dummyjson')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet')]"
 			]
 		},
 		{
@@ -1329,7 +1616,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_sql_generic')]"
+				"[concat(variables('factoryId'), '/datasets/ds_sql_generic')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet')]"
 			]
 		},
 		{
@@ -1993,981 +2281,8 @@
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_rest_crm_api')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_ingest_azuresql_table')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "CHILD: watermark-incremental (or full) copy of one Azure SQL table to Bronze parquet, with audit log + failure handling.",
-				"activities": [
-					{
-						"name": "sp_log_start",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.02:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[ctl].[usp_log_run_start]",
-							"storedProcedureParameters": {
-								"pipeline_run_id": {
-									"value": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"parent_run_id": {
-									"value": {
-										"value": "@pipeline().parameters.parent_run_id",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"pipeline_name": {
-									"value": {
-										"value": "@pipeline().Pipeline",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"project": {
-									"value": {
-										"value": "@pipeline().parameters.project",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"source_table": {
-									"value": {
-										"value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"old_watermark": {
-									"value": {
-										"value": "@pipeline().parameters.last_watermark",
-										"type": "Expression"
-									},
-									"type": "String"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "ls_azuresql",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "lkp_new_watermark",
-						"type": "Lookup",
-						"dependsOn": [
-							{
-								"activity": "sp_log_start",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.02:00:00",
-							"retry": 1,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": {
-									"value": "@if(equals(pipeline().parameters.load_type, 'FULL'), concat('SELECT CONVERT(VARCHAR(23), SYSUTCDATETIME(), 121) AS new_watermark, COUNT_BIG(1) AS delta_rows FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)), concat('SELECT CONVERT(VARCHAR(23), MAX(', pipeline().parameters.watermark_column, '), 121) AS new_watermark, COUNT_BIG(1) AS delta_rows FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table), ' WHERE ', pipeline().parameters.watermark_column, ' > ''', pipeline().parameters.last_watermark, ''''))",
-									"type": "Expression"
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "ds_sql_generic",
-								"type": "DatasetReference",
-								"parameters": {
-									"schema_name": "ctl",
-									"table_name": "ingestion_config"
-								}
-							},
-							"firstRowOnly": true
-						}
-					},
-					{
-						"name": "if_has_new_data",
-						"type": "IfCondition",
-						"dependsOn": [
-							{
-								"activity": "lkp_new_watermark",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"expression": {
-								"value": "@greater(activity('lkp_new_watermark').output.firstRow.delta_rows, 0)",
-								"type": "Expression"
-							},
-							"ifFalseActivities": [
-								{
-									"name": "sp_log_no_new_data",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.02:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[ctl].[usp_log_run_end]",
-										"storedProcedureParameters": {
-											"pipeline_run_id": {
-												"value": {
-													"value": "@pipeline().RunId",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"source_table": {
-												"value": {
-													"value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"status": {
-												"value": "NO_NEW_DATA",
-												"type": "String"
-											},
-											"rows_read": {
-												"value": 0,
-												"type": "Int64"
-											},
-											"rows_copied": {
-												"value": 0,
-												"type": "Int64"
-											},
-											"new_watermark": {
-												"value": {
-													"value": "@pipeline().parameters.last_watermark",
-													"type": "Expression"
-												},
-												"type": "String"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "ls_azuresql",
-										"type": "LinkedServiceReference"
-									}
-								}
-							],
-							"ifTrueActivities": [
-								{
-									"name": "copy_to_bronze",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.02:00:00",
-										"retry": 1,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "AzureSqlSource",
-											"additionalColumns": [
-												{
-													"name": "_adf_run_id",
-													"value": {
-														"value": "@pipeline().RunId",
-														"type": "Expression"
-													}
-												},
-												{
-													"name": "_ingest_ts",
-													"value": {
-														"value": "@utcNow()",
-														"type": "Expression"
-													}
-												}
-											],
-											"sqlReaderQuery": {
-												"value": "@if(equals(pipeline().parameters.load_type, 'FULL'), concat('SELECT * FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)), concat('SELECT * FROM ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table), ' WHERE ', pipeline().parameters.watermark_column, ' > ''', pipeline().parameters.last_watermark, ''' AND ', pipeline().parameters.watermark_column, ' <= ''', activity('lkp_new_watermark').output.firstRow.new_watermark, ''''))",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "ParquetSink",
-											"storeSettings": {
-												"type": "AzureBlobFSWriteSettings"
-											},
-											"formatSettings": {
-												"type": "ParquetWriteSettings"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "ds_sql_generic",
-											"type": "DatasetReference",
-											"parameters": {
-												"schema_name": {
-													"value": "@pipeline().parameters.source_schema",
-													"type": "Expression"
-												},
-												"table_name": {
-													"value": "@pipeline().parameters.source_table",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "ds_adls_parquet",
-											"type": "DatasetReference",
-											"parameters": {
-												"container": {
-													"value": "@pipeline().parameters.target_container",
-													"type": "Expression"
-												},
-												"folder_path": {
-													"value": "@concat(pipeline().parameters.target_folder, '/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd'))",
-													"type": "Expression"
-												},
-												"file_name": {
-													"value": "@concat(pipeline().parameters.source_table, '_', pipeline().RunId, '.parquet')",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								},
-								{
-									"name": "sp_update_watermark",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "copy_to_bronze",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.02:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[ctl].[usp_update_watermark]",
-										"storedProcedureParameters": {
-											"config_id": {
-												"value": {
-													"value": "@pipeline().parameters.config_id",
-													"type": "Expression"
-												},
-												"type": "Int32"
-											},
-											"new_watermark": {
-												"value": {
-													"value": "@activity('lkp_new_watermark').output.firstRow.new_watermark",
-													"type": "Expression"
-												},
-												"type": "String"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "ls_azuresql",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "sp_log_success",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "sp_update_watermark",
-											"dependencyConditions": [
-												"Succeeded"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.02:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[ctl].[usp_log_run_end]",
-										"storedProcedureParameters": {
-											"pipeline_run_id": {
-												"value": {
-													"value": "@pipeline().RunId",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"source_table": {
-												"value": {
-													"value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"status": {
-												"value": "SUCCEEDED",
-												"type": "String"
-											},
-											"rows_read": {
-												"value": {
-													"value": "@activity('copy_to_bronze').output.rowsRead",
-													"type": "Expression"
-												},
-												"type": "Int64"
-											},
-											"rows_copied": {
-												"value": {
-													"value": "@activity('copy_to_bronze').output.rowsCopied",
-													"type": "Expression"
-												},
-												"type": "Int64"
-											},
-											"new_watermark": {
-												"value": {
-													"value": "@activity('lkp_new_watermark').output.firstRow.new_watermark",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"file_path": {
-												"value": {
-													"value": "@concat(pipeline().parameters.target_container, '/', concat(pipeline().parameters.target_folder, '/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd')), '/', concat(pipeline().parameters.source_table, '_', pipeline().RunId, '.parquet'))",
-													"type": "Expression"
-												},
-												"type": "String"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "ls_azuresql",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "sp_log_copy_failure",
-									"type": "SqlServerStoredProcedure",
-									"dependsOn": [
-										{
-											"activity": "copy_to_bronze",
-											"dependencyConditions": [
-												"Failed"
-											]
-										}
-									],
-									"policy": {
-										"timeout": "0.02:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"storedProcedureName": "[[ctl].[usp_log_run_end]",
-										"storedProcedureParameters": {
-											"pipeline_run_id": {
-												"value": {
-													"value": "@pipeline().RunId",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"source_table": {
-												"value": {
-													"value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
-													"type": "Expression"
-												},
-												"type": "String"
-											},
-											"status": {
-												"value": "FAILED",
-												"type": "String"
-											},
-											"error_message": {
-												"value": {
-													"value": "@activity('copy_to_bronze').error.message",
-													"type": "Expression"
-												},
-												"type": "String"
-											}
-										}
-									},
-									"linkedServiceName": {
-										"referenceName": "ls_azuresql",
-										"type": "LinkedServiceReference"
-									}
-								},
-								{
-									"name": "fail_copy",
-									"type": "Fail",
-									"dependsOn": [
-										{
-											"activity": "sp_log_copy_failure",
-											"dependencyConditions": [
-												"Completed"
-											]
-										}
-									],
-									"userProperties": [],
-									"typeProperties": {
-										"message": {
-											"value": "@concat('Copy failed for ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table), ': ', activity('copy_to_bronze').error.message)",
-											"type": "Expression"
-										},
-										"errorCode": "500"
-									}
-								}
-							]
-						}
-					},
-					{
-						"name": "sp_log_lkp_new_watermark_failure",
-						"type": "SqlServerStoredProcedure",
-						"dependsOn": [
-							{
-								"activity": "lkp_new_watermark",
-								"dependencyConditions": [
-									"Failed"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.02:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"storedProcedureName": "[[ctl].[usp_log_run_end]",
-							"storedProcedureParameters": {
-								"pipeline_run_id": {
-									"value": {
-										"value": "@pipeline().RunId",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"source_table": {
-									"value": {
-										"value": "@concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table)",
-										"type": "Expression"
-									},
-									"type": "String"
-								},
-								"status": {
-									"value": "FAILED",
-									"type": "String"
-								},
-								"error_message": {
-									"value": {
-										"value": "@activity('lkp_new_watermark').error.message",
-										"type": "Expression"
-									},
-									"type": "String"
-								}
-							}
-						},
-						"linkedServiceName": {
-							"referenceName": "ls_azuresql",
-							"type": "LinkedServiceReference"
-						}
-					},
-					{
-						"name": "fail_lkp_new_watermark",
-						"type": "Fail",
-						"dependsOn": [
-							{
-								"activity": "sp_log_lkp_new_watermark_failure",
-								"dependencyConditions": [
-									"Completed"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"message": {
-								"value": "@concat('lkp_new_watermark failed for ', concat(pipeline().parameters.source_schema, '.', pipeline().parameters.source_table))",
-								"type": "Expression"
-							},
-							"errorCode": "500"
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"config_id": {
-						"type": "int"
-					},
-					"project": {
-						"type": "string"
-					},
-					"source_schema": {
-						"type": "string"
-					},
-					"source_table": {
-						"type": "string"
-					},
-					"load_type": {
-						"type": "string",
-						"defaultValue": "INCREMENTAL"
-					},
-					"watermark_column": {
-						"type": "string"
-					},
-					"last_watermark": {
-						"type": "string",
-						"defaultValue": "1900-01-01 00:00:00.000"
-					},
-					"target_container": {
-						"type": "string",
-						"defaultValue": "bronzefinserve"
-					},
-					"target_folder": {
-						"type": "string"
-					},
-					"parent_run_id": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "00_framework"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_sql_generic')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_prac_01_copy_customers')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "copy_customers_csv_to_parquet",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "ParquetSink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								},
-								"formatSettings": {
-									"type": "ParquetWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "CustomerID",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CustomerID",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "FirstName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "FirstName",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "LastName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "LastName",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "Email",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Email",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "Phone",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Phone",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "City",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "City",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "State",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "State",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "CreatedDate",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CreatedDate",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "ModifiedDate",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "ModifiedDate",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									},
-									{
-										"source": {
-											"name": "Status",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Status",
-											"type": "String",
-											"physicalType": "UTF8"
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_prac_customers_raw",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ds_prac_customers_parquet",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Practice"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_prac_customers_raw')]",
-				"[concat(variables('factoryId'), '/datasets/ds_prac_customers_parquet')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/pl_prac_02_fault_tolerance')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "copy_bad_customers_to_sql",
-						"type": "Copy",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "DelimitedTextSource",
-								"storeSettings": {
-									"type": "AzureBlobFSReadSettings",
-									"recursive": true,
-									"enablePartitionDiscovery": false
-								},
-								"formatSettings": {
-									"type": "DelimitedTextReadSettings"
-								}
-							},
-							"sink": {
-								"type": "AzureSqlSink",
-								"writeBehavior": "insert",
-								"sqlWriterUseTableLock": false
-							},
-							"enableStaging": false,
-							"enableSkipIncompatibleRow": true,
-							"logSettings": {
-								"enableCopyActivityLog": true,
-								"copyActivityLogSettings": {
-									"logLevel": "Warning",
-									"enableReliableLogging": true
-								},
-								"logLocationSettings": {
-									"linkedServiceName": {
-										"referenceName": "ls_prac_adls",
-										"type": "LinkedServiceReference"
-									},
-									"path": "practice/logs"
-								}
-							},
-							"translator": {
-								"type": "TabularTranslator",
-								"mappings": [
-									{
-										"source": {
-											"name": "CustomerID",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CustomerID",
-											"type": "Int32",
-											"physicalType": "int"
-										}
-									},
-									{
-										"source": {
-											"name": "FirstName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "FirstName",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "LastName",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "LastName",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "Email",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Email",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "City",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "City",
-											"type": "String",
-											"physicalType": "nvarchar"
-										}
-									},
-									{
-										"source": {
-											"name": "CreatedDate",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "CreatedDate",
-											"type": "Date",
-											"physicalType": "date"
-										}
-									},
-									{
-										"source": {
-											"name": "Balance",
-											"type": "String",
-											"physicalType": "String"
-										},
-										"sink": {
-											"name": "Balance",
-											"type": "Decimal",
-											"physicalType": "decimal",
-											"scale": 2,
-											"precision": 12
-										}
-									}
-								],
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "ds_prac_bad_customers_csv",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ls_prac_sql_customers_typed",
-								"type": "DatasetReference",
-								"parameters": {}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"folder": {
-					"name": "Practice"
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_prac_bad_customers_csv')]",
-				"[concat(variables('factoryId'), '/datasets/ls_prac_sql_customers_typed')]"
+				"[concat(variables('factoryId'), '/datasets/ds_rest_crm_api')]",
+				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet')]"
 			]
 		}
 	]
