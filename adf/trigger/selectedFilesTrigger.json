@@ -1,0 +1,25 @@
+{
+	"name": "selectedFilesTrigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ansh_04_for_loop_and_If_Condition",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Minute",
+				"interval": 15,
+				"startTime": "2026-10-18T15:50:00",
+				"endTime": "2026-10-18T16:00:00",
+				"timeZone": "India Standard Time"
+			}
+		}
+	}
+}
