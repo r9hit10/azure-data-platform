@@ -11,6 +11,14 @@
 			"type": "secureString",
 			"metadata": "Secure string for 'password' of 'ls_onprem_sqlserver'"
 		},
+		"ls1_ansh_dl_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://stfinservedevrohit.dfs.core.windows.net/"
+		},
+		"ls_02_source_git_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://raw.githubusercontent.com"
+		},
 		"ls_adls_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://stfinservedevrohit.dfs.core.windows.net/"
@@ -39,14 +47,6 @@
 			"type": "string",
 			"defaultValue": "https://stfinservedevrohit.dfs.core.windows.net/"
 		},
-		"ls_rest_crm_api_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://dummyjson.com/"
-		},
-		"ls_rest_dummyjson_properties_typeProperties_url": {
-			"type": "string",
-			"defaultValue": "https://dummyjson.com/"
-		},
 		"ls_prac_azuresql_properties_typeProperties_server": {
 			"type": "string",
 			"defaultValue": "sql-finserve-rohit.database.windows.net"
@@ -54,6 +54,14 @@
 		"ls_prac_azuresql_properties_typeProperties_database": {
 			"type": "string",
 			"defaultValue": "sqldb-finserve-rohit"
+		},
+		"ls_rest_crm_api_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://dummyjson.com/"
+		},
+		"ls_rest_dummyjson_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://dummyjson.com/"
 		},
 		"containerUri": {
 			"type": "string",
@@ -82,8 +90,11 @@
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
 					},
-					"ls_onprem_sqlserver_password": {
-						"value": "[parameters('ls_onprem_sqlserver_password')]"
+					"ls1_ansh_dl_properties_typeProperties_url": {
+						"value": "[parameters('ls1_ansh_dl_properties_typeProperties_url')]"
+					},
+					"ls_02_source_git_properties_typeProperties_url": {
+						"value": "[parameters('ls_02_source_git_properties_typeProperties_url')]"
 					},
 					"ls_adls_properties_typeProperties_url": {
 						"value": "[parameters('ls_adls_properties_typeProperties_url')]"
@@ -97,26 +108,17 @@
 					"ls_prac_adls_properties_typeProperties_url": {
 						"value": "[parameters('ls_prac_adls_properties_typeProperties_url')]"
 					},
-					"ls_rest_crm_api_properties_typeProperties_url": {
-						"value": "[parameters('ls_rest_crm_api_properties_typeProperties_url')]"
-					},
-					"ls_rest_dummyjson_properties_typeProperties_url": {
-						"value": "[parameters('ls_rest_dummyjson_properties_typeProperties_url')]"
-					},
 					"ls_prac_azuresql_properties_typeProperties_server": {
 						"value": "[parameters('ls_prac_azuresql_properties_typeProperties_server')]"
 					},
 					"ls_prac_azuresql_properties_typeProperties_database": {
 						"value": "[parameters('ls_prac_azuresql_properties_typeProperties_database')]"
 					},
-					"ls_onprem_sqlserver_properties_typeProperties_server": {
-						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_server')]"
+					"ls_rest_crm_api_properties_typeProperties_url": {
+						"value": "[parameters('ls_rest_crm_api_properties_typeProperties_url')]"
 					},
-					"ls_onprem_sqlserver_properties_typeProperties_database": {
-						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_database')]"
-					},
-					"ls_onprem_sqlserver_properties_typeProperties_userName": {
-						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_userName')]"
+					"ls_rest_dummyjson_properties_typeProperties_url": {
+						"value": "[parameters('ls_rest_dummyjson_properties_typeProperties_url')]"
 					}
 				}
 			},
@@ -135,11 +137,43 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
+					},
+					"ls_onprem_sqlserver_password": {
+						"value": "[parameters('ls_onprem_sqlserver_password')]"
+					},
+					"ls_onprem_sqlserver_properties_typeProperties_server": {
+						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_server')]"
+					},
+					"ls_onprem_sqlserver_properties_typeProperties_database": {
+						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_database')]"
+					},
+					"ls_onprem_sqlserver_properties_typeProperties_userName": {
+						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_userName')]"
 					}
 				}
 			},
 			"dependsOn": [
 				"[resourceId('Microsoft.Resources/deployments', 'adf-finserve-rohit_ArmTemplate_0')]"
+			]
+		},
+		{
+			"name": "adf-finserve-rohit_ArmTemplate_2",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_2.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Resources/deployments', 'adf-finserve-rohit_ArmTemplate_1')]"
 			]
 		}
 	]
