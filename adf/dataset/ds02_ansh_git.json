@@ -5,6 +5,9 @@
 			"referenceName": "ls_02_source_git",
 			"type": "LinkedServiceReference"
 		},
+		"folder": {
+			"name": "Datasets Ansh YT"
+		},
 		"annotations": [],
 		"type": "DelimitedText",
 		"typeProperties": {

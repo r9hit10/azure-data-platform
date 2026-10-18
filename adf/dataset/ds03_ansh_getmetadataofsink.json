@@ -5,6 +5,9 @@
 			"referenceName": "ls1_ansh_dl",
 			"type": "LinkedServiceReference"
 		},
+		"folder": {
+			"name": "Datasets Ansh YT"
+		},
 		"annotations": [],
 		"type": "DelimitedText",
 		"typeProperties": {
