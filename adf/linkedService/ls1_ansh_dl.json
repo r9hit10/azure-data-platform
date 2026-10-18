@@ -1,0 +1,10 @@
+{
+	"name": "ls1_ansh_dl",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobFS",
+		"typeProperties": {
+			"url": "https://stfinservedevrohit.dfs.core.windows.net/"
+		}
+	}
+}
