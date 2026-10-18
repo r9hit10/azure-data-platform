@@ -427,6 +427,43 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "Data flow to Transform",
+						"type": "ExecuteDataFlow",
+						"dependsOn": [
+							{
+								"activity": "ForEachCSV",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataflow": {
+								"referenceName": "dataflow1",
+								"type": "DataFlowReference",
+								"parameters": {},
+								"datasetParameters": {
+									"sourcereporting": {},
+									"sinktransformedfiles": {}
+								}
+							},
+							"staging": {},
+							"compute": {
+								"coreCount": 8,
+								"computeType": "General"
+							},
+							"traceLevel": "Fine"
+						}
 					}
 				],
 				"policy": {
@@ -439,6 +476,7 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/ds03_ansh_getmetadataofsink')]",
+				"[concat(variables('factoryId'), '/dataflows/dataflow1')]",
 				"[concat(variables('factoryId'), '/datasets/parads_04_param_csv')]",
 				"[concat(variables('factoryId'), '/datasets/ds_05_reporting_sink')]"
 			]
@@ -4690,6 +4728,35 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/ds05_sink_dataflow')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_prac_adls",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"fileName": "abc.csv",
+						"folderPath": "csvfiles",
+						"fileSystem": "ansh-adf-reporting"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_prac_adls')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds1_ansh_sink_csv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -4775,6 +4842,34 @@
 							"value": "@dataset().p_file_name",
 							"type": "Expression"
 						},
+						"folderPath": "csvfiles",
+						"fileSystem": "ansh-adf-reporting"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_prac_adls')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_05_source_dataflow_reportinng')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_prac_adls",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
 						"folderPath": "csvfiles",
 						"fileSystem": "ansh-adf-reporting"
 					},
@@ -5777,6 +5872,37 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/selectedFilesTrigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "PL_ansh_04_for_loop_and_If_Condition",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Minute",
+						"interval": 15,
+						"startTime": "2026-10-18T15:50:00",
+						"endTime": "2026-10-18T16:00:00",
+						"timeZone": "India Standard Time"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PL_ansh_04_for_loop_and_If_Condition')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/tr_bank_daily')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -5861,6 +5987,94 @@
 				"typeProperties": {}
 			},
 			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_05_source_dataflow_reportinng",
+								"type": "DatasetReference"
+							},
+							"name": "sourcereporting"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds05_sink_dataflow",
+								"type": "DatasetReference"
+							},
+							"name": "sinktransformedfiles"
+						}
+					],
+					"transformations": [
+						{
+							"name": "selectcols"
+						},
+						{
+							"name": "filterRows"
+						},
+						{
+							"name": "splitpayments",
+							"description": "Add cases to distribute the data in multiple groups/"
+						},
+						{
+							"name": "derivedColumnRemoveNulls"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          transaction_id as short,",
+						"          transactional_date as timestamp,",
+						"          product_id as string,",
+						"          customer_id as short,",
+						"          payment as string,",
+						"          credit_card as long,",
+						"          loyalty_card as boolean,",
+						"          cost as double,",
+						"          quantity as short,",
+						"          price as double",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> sourcereporting",
+						"sourcereporting select(mapColumn(",
+						"          transaction_id,",
+						"          transactional_date,",
+						"          product_id,",
+						"          customer_id,",
+						"          payment,",
+						"          cost,",
+						"          quantity,",
+						"          price",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectcols",
+						"selectcols filter(customer_id !=  12) ~> filterRows",
+						"filterRows split(payment=='visa',",
+						"     payment=='americanexpress',",
+						"     disjoint: false) ~> splitpayments@(visa, americanexpress, neitherboth)",
+						"splitpayments@neitherboth derive(payment = coalesce(payment,'N/A')) ~> derivedColumnRemoveNulls",
+						"splitpayments@visa sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinktransformedfiles"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_05_source_dataflow_reportinng')]",
+				"[concat(variables('factoryId'), '/datasets/ds05_sink_dataflow')]"
+			]
 		}
 	]
 }
