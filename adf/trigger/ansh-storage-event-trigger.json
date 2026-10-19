@@ -1,0 +1,25 @@
+{
+	"name": "ansh-storage-event-trigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "PL_ansh_01_Manager",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/ansh-adf-source/blobs/csvfiles",
+			"blobPathEndsWith": "Fact_Sales_1.csv",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/251d6b7f-bfbb-4f42-b69b-eca2405b7121/resourceGroups/rg-finserve-dev/providers/Microsoft.Storage/storageAccounts/stfinservedevrohit",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}
