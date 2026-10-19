@@ -59,6 +59,39 @@
 						"type": "DatasetReference"
 					}
 				]
+			},
+			{
+				"name": "DeleteFile",
+				"type": "Delete",
+				"dependsOn": [
+					{
+						"activity": "Copy_Csvs",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "ds_ansh_sourece_csv",
+						"type": "DatasetReference"
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"modifiedDatetimeStart": null,
+						"enablePartitionDiscovery": false
+					}
+				}
 			}
 		],
 		"folder": {
