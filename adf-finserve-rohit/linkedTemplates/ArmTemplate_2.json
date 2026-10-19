@@ -6,12 +6,219 @@
 			"type": "string",
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-finserve-rohit"
+		},
+		"ansh-storage-event-trigger_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/251d6b7f-bfbb-4f42-b69b-eca2405b7121/resourceGroups/rg-finserve-dev/providers/Microsoft.Storage/storageAccounts/stfinservedevrohit"
 		}
 	},
 	"variables": {
 		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
 	},
 	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_ecom_ingest_products_api')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"description": "REST API -> Bronze. Pagination rule on the skip query parameter; nested products[] array flattened via collectionReference.",
+				"activities": [
+					{
+						"name": "copy_products_api",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.02:00:00",
+							"retry": 1,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"additionalColumns": [
+									{
+										"name": "_ingest_ts",
+										"value": {
+											"value": "@utcNow()",
+											"type": "Expression"
+										}
+									}
+								],
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "GET",
+								"paginationRules": {
+									"QueryParameters.skip": "RANGE:0:600:30",
+									"EndCondition:$.products": "Empty"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"path": "[['id']"
+										},
+										"sink": {
+											"name": "product_id",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"path": "[['title']"
+										},
+										"sink": {
+											"name": "title",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['category']"
+										},
+										"sink": {
+											"name": "category",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['brand']"
+										},
+										"sink": {
+											"name": "brand",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['price']"
+										},
+										"sink": {
+											"name": "list_price",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "[['discountPercentage']"
+										},
+										"sink": {
+											"name": "discount_pct",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "[['rating']"
+										},
+										"sink": {
+											"name": "rating",
+											"type": "Decimal"
+										}
+									},
+									{
+										"source": {
+											"path": "[['stock']"
+										},
+										"sink": {
+											"name": "api_stock",
+											"type": "Int32"
+										}
+									},
+									{
+										"source": {
+											"path": "[['sku']"
+										},
+										"sink": {
+											"name": "sku",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['availabilityStatus']"
+										},
+										"sink": {
+											"name": "availability_status",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "[['returnPolicy']"
+										},
+										"sink": {
+											"name": "return_policy",
+											"type": "String"
+										}
+									},
+									{
+										"source": {
+											"path": "$['_ingest_ts']"
+										},
+										"sink": {
+											"name": "_ingest_ts",
+											"type": "String"
+										}
+									}
+								],
+								"collectionReference": "$['products']",
+								"mapComplexValuesToString": true
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_rest_dummyjson",
+								"type": "DatasetReference",
+								"parameters": {
+									"relative_url": "products?limit=30"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_adls_parquet",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "bronzefinserve",
+									"folder_path": {
+										"value": "@concat('ecom/products/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd'))",
+										"type": "Expression"
+									},
+									"file_name": {
+										"value": "@concat('products_', pipeline().RunId, '.parquet')",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "ecom"
+				},
+				"annotations": []
+			},
+			"dependsOn": []
+		},
 		{
 			"name": "[concat(parameters('factoryName'), '/pl_ecom_ingest_table_cdc')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
@@ -3341,6 +3548,66 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/Pl_ansh_06_Prod_Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "ExecuteManagerPipeline",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_ansh_01_Manager",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute for loop and if",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "ExecuteManagerPipeline",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_ansh_04_for_loop_and_If_Condition",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Ansh Lamba YT Practice"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PL_ansh_04_for_loop_and_If_Condition')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/pl_ecom_orchestrator')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -3641,6 +3908,7 @@
 				"annotations": []
 			},
 			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_ecom_ingest_products_api')]",
 				"[concat(variables('factoryId'), '/pipelines/pl_ecom_ingest_master')]"
 			]
 		},
@@ -3953,37 +4221,6 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/selectedFilesTrigger')]",
-			"type": "Microsoft.DataFactory/factories/triggers",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"annotations": [],
-				"runtimeState": "Started",
-				"pipelines": [
-					{
-						"pipelineReference": {
-							"referenceName": "PL_ansh_04_for_loop_and_If_Condition",
-							"type": "PipelineReference"
-						},
-						"parameters": {}
-					}
-				],
-				"type": "ScheduleTrigger",
-				"typeProperties": {
-					"recurrence": {
-						"frequency": "Minute",
-						"interval": 15,
-						"startTime": "2026-10-18T15:50:00",
-						"endTime": "2026-10-18T16:00:00",
-						"timeZone": "India Standard Time"
-					}
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/pipelines/PL_ansh_04_for_loop_and_If_Condition')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/pl_bank_orchestrator')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -4229,6 +4466,37 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/pl_ingest_master')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ansh-storage-event-trigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Pl_ansh_06_Prod_Pipeline",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/ansh-adf-source/blobs/csvfiles",
+					"blobPathEndsWith": "Fact_Sales_1.csv",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('ansh-storage-event-trigger_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Pl_ansh_06_Prod_Pipeline')]"
 			]
 		},
 		{

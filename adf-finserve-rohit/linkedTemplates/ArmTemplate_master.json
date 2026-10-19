@@ -63,6 +63,10 @@
 			"type": "string",
 			"defaultValue": "https://dummyjson.com/"
 		},
+		"ansh-storage-event-trigger_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/251d6b7f-bfbb-4f42-b69b-eca2405b7121/resourceGroups/rg-finserve-dev/providers/Microsoft.Storage/storageAccounts/stfinservedevrohit"
+		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -169,6 +173,9 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
+					},
+					"ansh-storage-event-trigger_properties_typeProperties_scope": {
+						"value": "[parameters('ansh-storage-event-trigger_properties_typeProperties_scope')]"
 					}
 				}
 			},

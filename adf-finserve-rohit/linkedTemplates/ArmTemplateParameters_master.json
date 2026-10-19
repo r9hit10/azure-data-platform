@@ -47,6 +47,9 @@
 		"ls_rest_dummyjson_properties_typeProperties_url": {
 			"value": "https://dummyjson.com/"
 		},
+		"ansh-storage-event-trigger_properties_typeProperties_scope": {
+			"value": "/subscriptions/251d6b7f-bfbb-4f42-b69b-eca2405b7121/resourceGroups/rg-finserve-dev/providers/Microsoft.Storage/storageAccounts/stfinservedevrohit"
+		},
 		"containerUri": {
 			"value": ""
 		},
