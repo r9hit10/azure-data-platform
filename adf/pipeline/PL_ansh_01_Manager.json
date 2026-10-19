@@ -92,6 +92,29 @@
 						"enablePartitionDiscovery": false
 					}
 				}
+			},
+			{
+				"name": "Execute Pipeline To Get File From Git",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "DeleteFile",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_ansh_02_DownloadGit",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
 			}
 		],
 		"folder": {
