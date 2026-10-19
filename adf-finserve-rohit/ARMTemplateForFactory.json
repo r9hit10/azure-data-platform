@@ -171,6 +171,30 @@
 								"enablePartitionDiscovery": false
 							}
 						}
+					},
+					{
+						"name": "Execute Pipeline To Get File From Git",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "DeleteFile",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_ansh_02_DownloadGit",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
@@ -183,7 +207,8 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/ds_ansh_sourece_csv')]",
-				"[concat(variables('factoryId'), '/datasets/ds1_ansh_sink_csv')]"
+				"[concat(variables('factoryId'), '/datasets/ds1_ansh_sink_csv')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_ansh_02_DownloadGit')]"
 			]
 		},
 		{
