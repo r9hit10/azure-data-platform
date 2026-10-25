@@ -1,6 +1,5 @@
 {
 	"name": "ls_onprem_sqlserver",
-	"type": "Microsoft.DataFactory/factories/linkedservices",
 	"properties": {
 		"annotations": [],
 		"type": "SqlServer",
@@ -11,11 +10,19 @@
 			"trustServerCertificate": true,
 			"authenticationType": "SQL",
 			"userName": "adf_reader",
-			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJkOWVlMjUzNC01NDkyLTRjMjctYjE5Mi0xMDAxZDQ3ZTMxZjYiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "ls_keyvault",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "onprem-sql-password"
+			}
 		},
 		"connectVia": {
 			"referenceName": "ir-selfhosted-laptop",
 			"type": "IntegrationRuntimeReference"
 		}
-	}
+	},
+	"type": "Microsoft.DataFactory/factories/linkedservices"
 }
