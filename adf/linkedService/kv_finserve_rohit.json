@@ -1,0 +1,10 @@
+{
+	"name": "kv_finserve_rohit",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://kv-finserve-rohit.vault.azure.net/"
+		}
+	}
+}
