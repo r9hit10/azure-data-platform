@@ -5,9 +5,6 @@
 		"factoryName": {
 			"value": "adf-finserve-rohit"
 		},
-		"ls_onprem_sqlserver_password": {
-			"value": ""
-		},
 		"ls1_ansh_dl_properties_typeProperties_url": {
 			"value": "https://stfinservedevrohit.dfs.core.windows.net/"
 		},
@@ -22,6 +19,9 @@
 		},
 		"ls_azuresql_properties_typeProperties_database": {
 			"value": "sqldb-finserve-rohit"
+		},
+		"ls_keyvault_properties_typeProperties_baseUrl": {
+			"value": "https://kv-finserve-rohit.vault.azure.net/"
 		},
 		"ls_onprem_sqlserver_properties_typeProperties_server": {
 			"value": "localhost\\SQLEXPRESS"

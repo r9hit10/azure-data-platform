@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-finserve-rohit"
 		},
-		"ls_onprem_sqlserver_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'ls_onprem_sqlserver'"
-		},
 		"ls_onprem_sqlserver_properties_typeProperties_server": {
 			"type": "string",
 			"defaultValue": "localhost\\SQLEXPRESS"
@@ -29,6 +25,32 @@
 	},
 	"resources": [
 		{
+			"name": "[concat(parameters('factoryName'), '/ds_05_source_dataflow_reportinng')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_prac_adls",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": "csvfiles",
+						"fileSystem": "ansh-adf-reporting"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": []
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/ds_adls_csv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -38,9 +60,6 @@
 					"type": "LinkedServiceReference"
 				},
 				"parameters": {
-					"container": {
-						"type": "string"
-					},
 					"folder_path": {
 						"type": "string"
 					},
@@ -49,7 +68,7 @@
 					}
 				},
 				"folder": {
-					"name": "generic"
+					"name": "Datasets Fro finServe"
 				},
 				"annotations": [],
 				"type": "DelimitedText",
@@ -64,146 +83,12 @@
 							"value": "@dataset().folder_path",
 							"type": "Expression"
 						},
-						"fileSystem": {
-							"value": "@dataset().container",
-							"type": "Expression"
-						}
+						"fileSystem": "landingfinserve"
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
 					"firstRowAsHeader": true,
 					"quoteChar": "\""
-				},
-				"schema": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_adls_folder')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_adls",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"container": {
-						"type": "string"
-					},
-					"folder_path": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "generic"
-				},
-				"annotations": [],
-				"type": "Binary",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"folderPath": {
-							"value": "@dataset().folder_path",
-							"type": "Expression"
-						},
-						"fileSystem": {
-							"value": "@dataset().container",
-							"type": "Expression"
-						}
-					}
-				}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_adls_json')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_adls",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"container": {
-						"type": "string"
-					},
-					"folder_path": {
-						"type": "string"
-					},
-					"file_name": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "generic"
-				},
-				"annotations": [],
-				"type": "Json",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": {
-							"value": "@dataset().file_name",
-							"type": "Expression"
-						},
-						"folderPath": {
-							"value": "@dataset().folder_path",
-							"type": "Expression"
-						},
-						"fileSystem": {
-							"value": "@dataset().container",
-							"type": "Expression"
-						}
-					}
-				},
-				"schema": {}
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_adls_parquet')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_adls",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"container": {
-						"type": "string"
-					},
-					"folder_path": {
-						"type": "string"
-					},
-					"file_name": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "generic"
-				},
-				"annotations": [],
-				"type": "Parquet",
-				"typeProperties": {
-					"location": {
-						"type": "AzureBlobFSLocation",
-						"fileName": {
-							"value": "@dataset().file_name",
-							"type": "Expression"
-						},
-						"folderPath": {
-							"value": "@dataset().folder_path",
-							"type": "Expression"
-						},
-						"fileSystem": {
-							"value": "@dataset().container",
-							"type": "Expression"
-						}
-					},
-					"compressionCodec": "snappy"
 				},
 				"schema": []
 			},
@@ -511,64 +396,6 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/ds_rest_crm_api')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_rest_crm_api",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"relative_url": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "generic"
-				},
-				"annotations": [],
-				"type": "RestResource",
-				"typeProperties": {
-					"relativeUrl": {
-						"value": "@dataset().relative_url",
-						"type": "Expression"
-					}
-				},
-				"schema": []
-			},
-			"dependsOn": []
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/ds_rest_dummyjson')]",
-			"type": "Microsoft.DataFactory/factories/datasets",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"linkedServiceName": {
-					"referenceName": "ls_rest_dummyjson",
-					"type": "LinkedServiceReference"
-				},
-				"parameters": {
-					"relative_url": {
-						"type": "string"
-					}
-				},
-				"folder": {
-					"name": "generic"
-				},
-				"annotations": [],
-				"type": "RestResource",
-				"typeProperties": {
-					"relativeUrl": {
-						"value": "@dataset().relative_url",
-						"type": "Expression"
-					}
-				},
-				"schema": []
-			},
-			"dependsOn": []
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/ds_sql_generic')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -586,7 +413,7 @@
 					}
 				},
 				"folder": {
-					"name": "generic"
+					"name": "Datasets Fro finServe"
 				},
 				"annotations": [],
 				"type": "AzureSqlTable",
@@ -749,8 +576,12 @@
 					"authenticationType": "SQL",
 					"userName": "[parameters('ls_onprem_sqlserver_properties_typeProperties_userName')]",
 					"password": {
-						"type": "SecureString",
-						"value": "[parameters('ls_onprem_sqlserver_password')]"
+						"type": "AzureKeyVaultSecret",
+						"store": {
+							"referenceName": "ls_keyvault",
+							"type": "LinkedServiceReference"
+						},
+						"secretName": "onprem-sql-password"
 					}
 				},
 				"connectVia": {
@@ -966,19 +797,18 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/pl_ecom_ingest_products_api')]",
+			"name": "[concat(parameters('factoryName'), '/pl_prac_01_copy_customers')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "REST API -> Bronze. Pagination rule on the skip query parameter; nested products[] array flattened via collectionReference.",
 				"activities": [
 					{
-						"name": "copy_products_api",
+						"name": "copy_customers_csv_to_parquet",
 						"type": "Copy",
 						"dependsOn": [],
 						"policy": {
-							"timeout": "0.02:00:00",
-							"retry": 1,
+							"timeout": "0.12:00:00",
+							"retry": 0,
 							"retryIntervalInSeconds": 30,
 							"secureOutput": false,
 							"secureInput": false
@@ -986,22 +816,14 @@
 						"userProperties": [],
 						"typeProperties": {
 							"source": {
-								"type": "RestSource",
-								"additionalColumns": [
-									{
-										"name": "_ingest_ts",
-										"value": {
-											"value": "@utcNow()",
-											"type": "Expression"
-										}
-									}
-								],
-								"httpRequestTimeout": "00:01:40",
-								"requestInterval": "00.00:00:00.010",
-								"requestMethod": "GET",
-								"paginationRules": {
-									"QueryParameters.skip": "RANGE:0:600:30",
-									"EndCondition:$.products": "Empty"
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
 								}
 							},
 							"sink": {
@@ -1019,138 +841,406 @@
 								"mappings": [
 									{
 										"source": {
-											"path": "[['id']"
+											"name": "CustomerID",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "product_id",
-											"type": "Int32"
+											"name": "CustomerID",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['title']"
+											"name": "FirstName",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "title",
-											"type": "String"
+											"name": "FirstName",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['category']"
+											"name": "LastName",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "category",
-											"type": "String"
+											"name": "LastName",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['brand']"
+											"name": "Email",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "brand",
-											"type": "String"
+											"name": "Email",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['price']"
+											"name": "Phone",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "list_price",
-											"type": "Decimal"
+											"name": "Phone",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['discountPercentage']"
+											"name": "City",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "discount_pct",
-											"type": "Decimal"
+											"name": "City",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['rating']"
+											"name": "State",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "rating",
-											"type": "Decimal"
+											"name": "State",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['stock']"
+											"name": "CreatedDate",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "api_stock",
-											"type": "Int32"
+											"name": "CreatedDate",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['sku']"
+											"name": "ModifiedDate",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "sku",
-											"type": "String"
+											"name": "ModifiedDate",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									},
 									{
 										"source": {
-											"path": "[['availabilityStatus']"
+											"name": "Status",
+											"type": "String",
+											"physicalType": "String"
 										},
 										"sink": {
-											"name": "availability_status",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"path": "[['returnPolicy']"
-										},
-										"sink": {
-											"name": "return_policy",
-											"type": "String"
-										}
-									},
-									{
-										"source": {
-											"path": "$['_ingest_ts']"
-										},
-										"sink": {
-											"name": "_ingest_ts",
-											"type": "String"
+											"name": "Status",
+											"type": "String",
+											"physicalType": "UTF8"
 										}
 									}
 								],
-								"collectionReference": "$['products']",
-								"mapComplexValuesToString": true
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
 							}
 						},
 						"inputs": [
 							{
-								"referenceName": "ds_rest_dummyjson",
+								"referenceName": "ds_prac_customers_raw",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ds_prac_customers_parquet",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Practice"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_prac_customers_raw')]",
+				"[concat(variables('factoryId'), '/datasets/ds_prac_customers_parquet')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_prac_02_fault_tolerance')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "copy_bad_customers_to_sql",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"enableSkipIncompatibleRow": true,
+							"logSettings": {
+								"enableCopyActivityLog": true,
+								"copyActivityLogSettings": {
+									"logLevel": "Warning",
+									"enableReliableLogging": true
+								},
+								"logLocationSettings": {
+									"linkedServiceName": {
+										"referenceName": "ls_prac_adls",
+										"type": "LinkedServiceReference"
+									},
+									"path": "practice/logs"
+								}
+							},
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "CustomerID",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "CustomerID",
+											"type": "Int32",
+											"physicalType": "int"
+										}
+									},
+									{
+										"source": {
+											"name": "FirstName",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "FirstName",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "LastName",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "LastName",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "Email",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Email",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "City",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "City",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "CreatedDate",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "CreatedDate",
+											"type": "Date",
+											"physicalType": "date"
+										}
+									},
+									{
+										"source": {
+											"name": "Balance",
+											"type": "String",
+											"physicalType": "String"
+										},
+										"sink": {
+											"name": "Balance",
+											"type": "Decimal",
+											"physicalType": "decimal",
+											"scale": 2,
+											"precision": 12
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_prac_bad_customers_csv",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ls_prac_sql_customers_typed",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"folder": {
+					"name": "Practice"
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_prac_bad_customers_csv')]",
+				"[concat(variables('factoryId'), '/datasets/ls_prac_sql_customers_typed')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_prac_03_param_copy')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "copy_any_file",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_prac_csv_param",
 								"type": "DatasetReference",
 								"parameters": {
-									"relative_url": "products?limit=30"
+									"file_name": {
+										"value": "@pipeline().parameters.p_file_name",
+										"type": "Expression"
+									}
 								}
 							}
 						],
 						"outputs": [
 							{
-								"referenceName": "ds_adls_parquet",
+								"referenceName": "ds_prac_parquet_param",
 								"type": "DatasetReference",
 								"parameters": {
-									"container": "bronzefinserve",
-									"folder_path": {
-										"value": "@concat('ecom/products/load_date=', formatDateTime(pipeline().TriggerTime,'yyyy-MM-dd'))",
-										"type": "Expression"
-									},
 									"file_name": {
-										"value": "@concat('products_', pipeline().RunId, '.parquet')",
+										"value": "@pipeline().parameters.p_sink_file",
 										"type": "Expression"
 									}
 								}
@@ -1161,14 +1251,149 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
+				"parameters": {
+					"p_file_name": {
+						"type": "string",
+						"defaultValue": "accounts_raw.csv"
+					},
+					"p_sink_file": {
+						"type": "string",
+						"defaultValue": "accounts.parquet"
+					}
+				},
 				"folder": {
-					"name": "ecom"
+					"name": "Practice"
 				},
 				"annotations": []
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/ds_rest_dummyjson')]",
-				"[concat(variables('factoryId'), '/datasets/ds_adls_parquet')]"
+				"[concat(variables('factoryId'), '/datasets/ds_prac_csv_param')]",
+				"[concat(variables('factoryId'), '/datasets/ds_prac_parquet_param')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_onprem_sql_generic')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_onprem_sqlserver",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"schema_name": {
+						"type": "string"
+					},
+					"table_name": {
+						"type": "string"
+					}
+				},
+				"folder": {
+					"name": "Datasets Fro finServe"
+				},
+				"annotations": [],
+				"type": "SqlServerTable",
+				"schema": [],
+				"typeProperties": {
+					"schema": {
+						"value": "@dataset().schema_name",
+						"type": "Expression"
+					},
+					"table": {
+						"value": "@dataset().table_name",
+						"type": "Expression"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_onprem_sqlserver')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/dataflow1')]",
+			"type": "Microsoft.DataFactory/factories/dataflows",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"type": "MappingDataFlow",
+				"typeProperties": {
+					"sources": [
+						{
+							"dataset": {
+								"referenceName": "ds_05_source_dataflow_reportinng",
+								"type": "DatasetReference"
+							},
+							"name": "sourcereporting"
+						}
+					],
+					"sinks": [
+						{
+							"dataset": {
+								"referenceName": "ds05_sink_dataflow",
+								"type": "DatasetReference"
+							},
+							"name": "sinktransformedfiles"
+						}
+					],
+					"transformations": [
+						{
+							"name": "selectcols"
+						},
+						{
+							"name": "filterRows"
+						},
+						{
+							"name": "splitpayments",
+							"description": "Add cases to distribute the data in multiple groups/"
+						},
+						{
+							"name": "derivedColumnRemoveNulls"
+						}
+					],
+					"scriptLines": [
+						"source(output(",
+						"          transaction_id as short,",
+						"          transactional_date as timestamp,",
+						"          product_id as string,",
+						"          customer_id as short,",
+						"          payment as string,",
+						"          credit_card as long,",
+						"          loyalty_card as boolean,",
+						"          cost as double,",
+						"          quantity as short,",
+						"          price as double",
+						"     ),",
+						"     allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     ignoreNoFilesFound: false) ~> sourcereporting",
+						"sourcereporting select(mapColumn(",
+						"          transaction_id,",
+						"          transactional_date,",
+						"          product_id,",
+						"          customer_id,",
+						"          payment,",
+						"          cost,",
+						"          quantity,",
+						"          price",
+						"     ),",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> selectcols",
+						"selectcols filter(customer_id !=  12) ~> filterRows",
+						"filterRows split(payment=='visa',",
+						"     payment=='americanexpress',",
+						"     disjoint: false) ~> splitpayments@(visa, americanexpress, neitherboth)",
+						"splitpayments@neitherboth derive(payment = coalesce(payment,'N/A')) ~> derivedColumnRemoveNulls",
+						"splitpayments@visa sink(allowSchemaDrift: true,",
+						"     validateSchema: false,",
+						"     umask: 0022,",
+						"     preCommands: [],",
+						"     postCommands: [],",
+						"     skipDuplicateMapInputs: true,",
+						"     skipDuplicateMapOutputs: true) ~> sinktransformedfiles"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_05_source_dataflow_reportinng')]"
 			]
 		}
 	]

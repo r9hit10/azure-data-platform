@@ -7,10 +7,6 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-finserve-rohit"
 		},
-		"ls_onprem_sqlserver_password": {
-			"type": "secureString",
-			"metadata": "Secure string for 'password' of 'ls_onprem_sqlserver'"
-		},
 		"ls1_ansh_dl_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://stfinservedevrohit.dfs.core.windows.net/"
@@ -30,6 +26,10 @@
 		"ls_azuresql_properties_typeProperties_database": {
 			"type": "string",
 			"defaultValue": "sqldb-finserve-rohit"
+		},
+		"ls_keyvault_properties_typeProperties_baseUrl": {
+			"type": "string",
+			"defaultValue": "https://kv-finserve-rohit.vault.azure.net/"
 		},
 		"ls_onprem_sqlserver_properties_typeProperties_server": {
 			"type": "string",
@@ -109,6 +109,9 @@
 					"ls_azuresql_properties_typeProperties_database": {
 						"value": "[parameters('ls_azuresql_properties_typeProperties_database')]"
 					},
+					"ls_keyvault_properties_typeProperties_baseUrl": {
+						"value": "[parameters('ls_keyvault_properties_typeProperties_baseUrl')]"
+					},
 					"ls_prac_adls_properties_typeProperties_url": {
 						"value": "[parameters('ls_prac_adls_properties_typeProperties_url')]"
 					},
@@ -141,9 +144,6 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
-					},
-					"ls_onprem_sqlserver_password": {
-						"value": "[parameters('ls_onprem_sqlserver_password')]"
 					},
 					"ls_onprem_sqlserver_properties_typeProperties_server": {
 						"value": "[parameters('ls_onprem_sqlserver_properties_typeProperties_server')]"
