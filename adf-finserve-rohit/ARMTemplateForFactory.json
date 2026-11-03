@@ -2515,7 +2515,7 @@
 													"type": "Expression"
 												},
 												"table_name": {
-													"value": "@item().taarget_table",
+													"value": "@item().target_table",
 													"type": "Expression"
 												}
 											}
